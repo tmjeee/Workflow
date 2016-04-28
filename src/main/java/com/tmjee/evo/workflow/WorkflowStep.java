@@ -13,4 +13,8 @@ public interface WorkflowStep {
     String getName();
     Type getType();
     void advance(Input input);
+
+    public static class Builder {
+
+    }
 }

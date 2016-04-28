@@ -1,12 +1,14 @@
 package com.tmjee.evo.workflow;
 
+import java.util.Map;
+
 /**
  * @author tmjee
  */
 public class WorkflowStepDecision implements WorkflowStep {
 
 
-
+    private Map<String, WorkflowStep> possibilities;
 
 
     @Override
@@ -24,12 +26,15 @@ public class WorkflowStepDecision implements WorkflowStep {
 
     }
 
-    public static class Builder {
-        public Builder when(String condition, TaskRunner r) {
+    public static class Builder extends WorkflowStep.Builder {
+        public Builder when(String condition, WorkflowStep workflowStep) {
             return this;
         }
-        public Builder when(String condition, String taskName) {
+        public Builder when(String condition, String workflowStepName) {
             return this;
+        }
+        public WorkflowStepDecision build() {
+            return null;
         }
     }
 }

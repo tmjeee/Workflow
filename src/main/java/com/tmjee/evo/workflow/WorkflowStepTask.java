@@ -4,6 +4,9 @@ package com.tmjee.evo.workflow;
  * @author tmjee
  */
 public class WorkflowStepTask implements WorkflowStep{
+
+    private WorkflowContext workflowContext;
+
     @Override
     public String getName() {
         return null;
@@ -20,9 +23,12 @@ public class WorkflowStepTask implements WorkflowStep{
     }
 
 
-    public static class Builder {
-        public WorkflowStepTask build(String name, TaskRunner r) {
-            return new WorkflowStepTask();
+    public static class Builder extends WorkflowStep.Builder {
+        public Builder set(String name, TaskRunner r) {
+            return this;
+        }
+        public WorkflowStepTask build() {
+            return null;
         }
     }
 }
