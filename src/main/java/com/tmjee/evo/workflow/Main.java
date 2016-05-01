@@ -30,14 +30,20 @@ public class Main {
             .doTask("task6", ()->{})
             .build();
 
+        System.out.println(workflow);
 
-        while(!workflow.hasNext()) {
-            WorkflowStep step = workflow.next();
+        workflow.prettyPrintFlowDiagram();
+
+
+        /*
+        while(!workflow.hasNextStep()) {
+            WorkflowStep step = workflow.nextStep();
             step.getName();
             step.getType();
 
             Input input = new Input();
             step.advance(input);
         }
+        */
     }
 }

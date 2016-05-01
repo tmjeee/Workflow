@@ -1,9 +1,10 @@
 package com.tmjee.evo.workflow;
 
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
+
+import static java.lang.String.format;
 
 /**
  * @author tmjee
@@ -18,44 +19,88 @@ public class WorkflowBuilder {
     }
 
 
-    private Param param = new Param();
 
     // ----------- instance methods
 
+    private Param param = new Param();
+
     public WorkflowBuilder doTask(String name, TaskRunner r) {
-        new TaskCondition(r).process(param);
+        new TaskCondition(name, r).process(param);
         return this;
     }
 
 
     public WorkflowBuilder decide(String name, WhenCondition... whenConditions) {
-        new DecideCondition().process(param);
+        new DecideCondition(name, whenConditions).process(param);
         return this;
     }
 
     public Workflow build() {
-        return null;
+
+        if (param.allBuilders.isEmpty()) {
+            throw new WorkflowException("No workflow steps defined");
+        }
+
+        WorkflowStep start = new WorkflowStepStart(param.allBuilders.keySet().iterator().next());
+
+        WorkflowStep end = new WorkflowStepEnd();
+
+        Map<String, WorkflowStep> m = new LinkedHashMap<>();
+        m.put(start.getName(), start);
+
+        for(Map.Entry<String, WorkflowStep.Builder> e : param.allBuilders.entrySet()) {
+            String name = e.getKey();
+            WorkflowStep.Builder workflowStepBuilder = e.getValue();
+
+            m.put(name, workflowStepBuilder.build());
+        }
+
+        m.put(end.getName(), end);
+
+        Set<String> validationMessages = new HashSet<>();
+
+        for (Map.Entry<String, WorkflowStep> e : m.entrySet()) {
+            WorkflowStep workflowStep = e.getValue();
+            if (workflowStep instanceof  AbstractWorkflowStep) {
+                ((AbstractWorkflowStep)workflowStep).validate(Collections.unmodifiableMap(m), validationMessages);
+            }
+        }
+
+        if(!validationMessages.isEmpty()) {
+            throw new WorkflowException("failed with following validations \n"+
+                validationMessages.stream().collect(Collectors.joining("\t\n")));
+        }
+
+        return new Workflow(m);
     }
 
-
-    static class Param {
-        WorkflowStep.Builder currentBuilder;
-        Map<String, WorkflowStep.Builder> allBuilders;
-    }
 
 
 
     // ----------- inner classes
 
-    public abstract class Condition {
+    static class Param {
+        private WorkflowStep.Builder currentBuilder;
+        private Map<String, WorkflowStep.Builder> allBuilders = new LinkedHashMap<>();
+
+        void addWorkflowStepBuilder(String name, WorkflowStep.Builder b) {
+           if (allBuilders.containsKey(name)) {
+               throw new WorkflowException(format("workflow step %s already exists", name));
+           } else {
+               allBuilders.put(name, b);
+           }
+        }
+    }
+
+    public static abstract class Condition {
         abstract void process(Param param);
     }
 
-    public abstract class NamedCondition extends Condition {
+    public static abstract class NamedCondition extends Condition {
         abstract String name();
     }
 
-    public class TaskCondition extends NamedCondition {
+    public static class TaskCondition extends NamedCondition {
         TaskRunner r;
         String name;
         TaskCondition(String name, TaskRunner r) {
@@ -70,14 +115,16 @@ public class WorkflowBuilder {
 
         @Override
         void process(Param param) {
-            parent.setNext(name);
-            currentBuilder = new WorkflowStepTask.Builder()
-                .set(name, r);
+            if (param.currentBuilder != null) {
+                param.currentBuilder.setNextStep(name);
+            }
+            param.currentBuilder = new WorkflowStepTask.Builder()
+                .setName(name, r);
+            param.addWorkflowStepBuilder(name, param.currentBuilder);
         }
-
     }
 
-    public class DecideCondition extends NamedCondition {
+    public static class DecideCondition extends NamedCondition {
         private String name;
         private WhenCondition[] whenConditions;
 
@@ -93,17 +140,20 @@ public class WorkflowBuilder {
 
         @Override
         void process(Param param) {
-            parent.setNext(name);
-            currentBuilder = new WorkflowStepDecision.Builder()
-                .set(name);
+            if (param.currentBuilder != null) {
+                param.currentBuilder.setNextStep(name);
+            }
+            param.currentBuilder = new WorkflowStepDecision.Builder()
+                .setName(name);
+            param.addWorkflowStepBuilder(name, param.currentBuilder);
             for (WhenCondition wc : whenConditions) {
-                wc.process(currentBuilder);
+                wc.process(param);
             }
         }
 
     }
 
-    public class WhenCondition extends Condition {
+    public static class WhenCondition extends Condition {
 
         List<NamedCondition> conditions;
         String cond;
@@ -125,10 +175,12 @@ public class WorkflowBuilder {
 
         @Override
         void process(Param param) {
+            WorkflowStep.Builder oldBuilder = param.currentBuilder;
             for (NamedCondition c : conditions) {
-                builder.setNext(cond, c.name());
-                c.process(builder);
+                param.currentBuilder.setNextStep(cond, c.name());
+                c.process(param);
             }
+            param.currentBuilder = oldBuilder;
         }
     }
 

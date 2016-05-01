@@ -1,6 +1,7 @@
 package com.tmjee.evo.workflow;
 
-import java.util.HashMap;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
@@ -8,27 +9,33 @@ import java.util.Map;
  */
 public class Workflow {
 
-    private static final String START = "__________start___________";
-    private static final String END   = "___________end____________";
+
+    private final Map<String, WorkflowStep> m;
+
+    private final WorkflowContext workflowContext;
 
 
-    private Map<String, WorkflowStep> m = new HashMap<>();
+    Workflow(Map<String, WorkflowStep> m) {
+        this.m = Collections.unmodifiableMap(new LinkedHashMap<>(m));
+        this.workflowContext = new WorkflowContext();
+        for (WorkflowStep s : m.values()) {
+            s.setWorkflowContext(workflowContext);
+        }
+    }
 
-    private String currentWorkflowStepName = "start";
 
     public void prettyPrintFlowDiagram() {
+        new FlowDiagramPrettyPrinter(m).print();
     }
 
 
-    public boolean hasNext() {
-
-        return false;
+    public boolean hasNextStep() {
+        return (workflowContext.getCurrentWorkflowStepName() != null);
     }
 
 
-    public WorkflowStep next() {
-
-        return null;
+    public WorkflowStep nextStep() {
+        return m.get(workflowContext.getCurrentWorkflowStepName());
     }
 
 }

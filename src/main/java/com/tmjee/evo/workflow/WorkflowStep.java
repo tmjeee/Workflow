@@ -13,8 +13,17 @@ public interface WorkflowStep {
     String getName();
     Type getType();
     void advance(Input input);
+    void setWorkflowContext(WorkflowContext workflowContext);
+    void accept(Visitor v);
 
-    public static class Builder {
+    abstract class Builder {
+        Builder setNextStep(String name) { return this; };
+        Builder setNextStep(String condition, String workflowStepName) { return this; };
+        abstract WorkflowStep build();
+    }
 
+    interface Visitor {
+        void setNextStep(String workflowStepName);
+        void setNextStep(String cond, String workflowStepName);
     }
 }
