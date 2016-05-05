@@ -20,7 +20,7 @@ public class FlowDiagramPrettyPrinter {
     int lane =0;
     int i=0;
     Map<String, Node> nodesMap;
-    Set<Integer> s = new TreeSet<>();
+    Set<Integer> s = new TreeSet<>(); // all of the current lanes
 
     public void print() {
         lane = 0;
@@ -95,22 +95,22 @@ public class FlowDiagramPrettyPrinter {
         void prettyPrint() {
             switch(type) {
                 case TASK:
-                    System.out.println(format("  +-------+ "   ));prettyPrint_Path();
-                    System.out.print(  format("  |       | "   ));prettyPrint_OutcommingPath();
-                    System.out.println(format("  |  %s   | ", i));prettyPrint_Path();
-                    System.out.println(format("  |       | "   ));prettyPrint_IncommingPath();
-                    System.out.println(format("  +-------+ "   ));prettyPrint_Path();
-                                                                  prettyPrint_Path();
-                                                                  prettyPrint_Path();
+                    System.out.print(format("  +-------+ "   ));prettyPrint_Path();printLine();
+                    System.out.print(format("  |       | "   ));prettyPrint_OutcommingPath();printLine();
+                    System.out.print(format("  |  %s    | ", i));prettyPrint_Path();printLine();
+                    System.out.print(format("  |       | "   ));prettyPrint_IncommingPath();printLine();
+                    System.out.print(format("  +-------+ "   ));prettyPrint_Path();printLine();
+                    System.out.print(format("            "   ));prettyPrint_Path();printLine();
+                    System.out.print(format("            "   ));prettyPrint_Path();printLine();
                     break;
                 case DECISION:
-                    System.out.println(format("   -----    "   ));prettyPrint_Path();
-                    System.out.print(  format("  /     \\  "   ));prettyPrint_OutcommingPath();
-                    System.out.println(format(" /   %s  \\ ", i));prettyPrint_Path();
-                    System.out.println(format(" \\      /  "   ));prettyPrint_IncommingPath();
-                    System.out.println(format("  \\    /   "   ));prettyPrint_Path();
-                    System.out.println(format("    ---     "   ));prettyPrint_Path();
-                                                                  prettyPrint_Path();
+                    System.out.print(format("   -----    "   ));prettyPrint_Path();printLine();
+                    System.out.print(format("  /     \\   "   ));prettyPrint_OutcommingPath();printLine();
+                    System.out.print(format(" /   %s   \\  ", i));prettyPrint_Path();printLine();
+                    System.out.print(format(" \\       /  "   ));prettyPrint_IncommingPath();printLine();
+                    System.out.print(format("  \\     /   "   ));prettyPrint_Path();printLine();
+                    System.out.print(format("   -----    "   ));prettyPrint_Path();printLine();
+                    System.out.print(format("            "   ));prettyPrint_Path();printLine();
                     break;
             }
 
@@ -119,16 +119,18 @@ public class FlowDiagramPrettyPrinter {
             Set<Integer> o = incommings.stream().mapToInt((p) -> p.lane).collect(TreeSet::new, TreeSet::add, TreeSet::addAll);
             System.out.print("-<---");
             prettyPrint_commonPath(o);
+            //s.remove(i);
         }
 
         void prettyPrint_OutcommingPath() {
-            Set<Integer> o = incommings.stream().mapToInt((p) -> p.lane).collect(TreeSet::new, TreeSet::add, TreeSet::addAll);
+            Set<Integer> o = outgoings.stream().mapToInt((p) -> p.lane).collect(TreeSet::new, TreeSet::add, TreeSet::addAll);
             System.out.print("->---");
+            s.add(i);
             prettyPrint_commonPath(o);
         }
 
         void prettyPrint_commonPath(Set<Integer> o) {
-            for (int a = s.stream().max(Comparator.naturalOrder()).get(); a >= 0; a--) {
+            for (int a = s.stream().max(Comparator.naturalOrder()).orElse(0); a >= 0; a--) {
                 if (s.contains(a)) {
                     System.out.print("--n--");
                 } else if (o.contains(a)) {
@@ -141,13 +143,17 @@ public class FlowDiagramPrettyPrinter {
 
         void prettyPrint_Path() {
             System.out.print("     ");
-            for (int a = s.stream().max(Comparator.naturalOrder()).get(); a >= 0; a--) {
+            for (int a = s.stream().max(Comparator.naturalOrder()).orElse(0); a >= 0; a--) {
                 if (s.contains(a)) {
                     System.out.print(format("  |  "));
                 } else {
                     System.out.print(format("     "));
                 }
             }
+        }
+
+        void printLine() {
+            System.out.println();
         }
     }
 
