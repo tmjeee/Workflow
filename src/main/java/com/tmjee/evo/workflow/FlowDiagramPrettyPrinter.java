@@ -1,8 +1,6 @@
 package com.tmjee.evo.workflow;
 
 import java.util.*;
-import java.util.function.Supplier;
-import java.util.stream.Collectors;
 
 import static java.lang.String.format;
 
@@ -51,7 +49,13 @@ public class FlowDiagramPrettyPrinter {
         }
 
         for (Node n : nodesMap.values()) {
+            //addOutgoingPaths(n);
             n.prettyPrint();
+        }
+
+        System.out.println("Legend:");
+        for (Node n : nodesMap.values()) {
+           System.out.println(format("\t%s - %s", n.i, n.name));
         }
     }
 
@@ -69,6 +73,14 @@ public class FlowDiagramPrettyPrinter {
             nodesMap.put(workflowStepName, n);
         }
         return nodesMap.get(workflowStepName);
+    }
+    private void addOutgoingPaths(Node n) {
+        Set<Integer> o = n.outgoings.stream().mapToInt((p) -> p.lane).collect(TreeSet::new, TreeSet::add, TreeSet::addAll);
+        s.addAll(o);
+    }
+    private void removeIncommingPaths(Node n) {
+        Set<Integer> o = n.incommings.stream().mapToInt((p) -> p.lane).collect(TreeSet::new, TreeSet::add, TreeSet::addAll);
+        s.removeAll(o);
     }
 
 
@@ -95,8 +107,9 @@ public class FlowDiagramPrettyPrinter {
         void prettyPrint() {
             switch(type) {
                 case TASK:
+                    //addOutgoingPaths(this);
                     System.out.print(format("  +-------+ "   ));prettyPrint_Path();printLine();
-                    System.out.print(format("  |       | "   ));prettyPrint_OutcommingPath();printLine();
+                    System.out.print(format("  |       | "   )); prettyPrint_OutgoingPath();printLine();
                     System.out.print(format("  |  %s    | ", i));prettyPrint_Path();printLine();
                     System.out.print(format("  |       | "   ));prettyPrint_IncommingPath();printLine();
                     System.out.print(format("  +-------+ "   ));prettyPrint_Path();printLine();
@@ -105,7 +118,7 @@ public class FlowDiagramPrettyPrinter {
                     break;
                 case DECISION:
                     System.out.print(format("   -----    "   ));prettyPrint_Path();printLine();
-                    System.out.print(format("  /     \\   "   ));prettyPrint_OutcommingPath();printLine();
+                    System.out.print(format("  /     \\   "   )); prettyPrint_OutgoingPath();printLine();
                     System.out.print(format(" /   %s   \\  ", i));prettyPrint_Path();printLine();
                     System.out.print(format(" \\       /  "   ));prettyPrint_IncommingPath();printLine();
                     System.out.print(format("  \\     /   "   ));prettyPrint_Path();printLine();
@@ -113,41 +126,69 @@ public class FlowDiagramPrettyPrinter {
                     System.out.print(format("            "   ));prettyPrint_Path();printLine();
                     break;
             }
-
         }
         void prettyPrint_IncommingPath() {
             Set<Integer> o = incommings.stream().mapToInt((p) -> p.lane).collect(TreeSet::new, TreeSet::add, TreeSet::addAll);
-            System.out.print("-<---");
-            prettyPrint_commonPath(o);
-            //s.remove(i);
-        }
+            if (o.isEmpty()) {
+                prettyPrint_Path();
+                return;
+            }
 
-        void prettyPrint_OutcommingPath() {
-            Set<Integer> o = outgoings.stream().mapToInt((p) -> p.lane).collect(TreeSet::new, TreeSet::add, TreeSet::addAll);
-            System.out.print("->---");
-            s.add(i);
-            prettyPrint_commonPath(o);
-        }
+            int max = Math.max(
+                s.stream().max(Comparator.naturalOrder()).orElse(-1),
+                o.stream().max(Comparator.naturalOrder()).orElse(-1));
 
-        void prettyPrint_commonPath(Set<Integer> o) {
-            for (int a = s.stream().max(Comparator.naturalOrder()).orElse(0); a >= 0; a--) {
-                if (s.contains(a)) {
-                    System.out.print("--n--");
-                } else if (o.contains(a)) {
-                    System.out.print("--+--");
+            System.out.print("-<-");
+            for (int a=0; a<=max;a++) {
+                if (o.contains(a)) {
+                    System.out.print("--+");
+                    o.remove(a);
+                    s.remove(a);
+                } else if (!o.isEmpty() && s.contains(a)) {
+                    System.out.print("-\\/");
+                } else if (o.isEmpty() && s.contains(a)) {
+                    System.out.print("  |");
                 } else {
-                    System.out.print("-----");
+                    System.out.print("---");
+                }
+            }
+        }
+
+        void prettyPrint_OutgoingPath() {
+            Set<Integer> o = outgoings.stream().mapToInt((p) -> p.lane).collect(TreeSet::new, TreeSet::add, TreeSet::addAll);
+            if (o.isEmpty()) {
+                prettyPrint_Path();
+                return;
+            }
+
+            int max = Math.max(
+                s.stream().max(Comparator.naturalOrder()).orElse(-1),
+                o.stream().max(Comparator.naturalOrder()).orElse(-1));
+
+            System.out.print("->-");
+
+            for (int a=0; a<=max;a++) {
+                if (o.contains(a)) {
+                    System.out.print("--+");
+                    s.add(a);
+                } else if (!o.isEmpty() && s.contains(a)) {
+                    System.out.print("-/\\");
+                } else if (o.isEmpty() && s.contains(a)) {
+                    System.out.print("  |");
+                } else {
+                    System.out.print("---");
                 }
             }
         }
 
         void prettyPrint_Path() {
-            System.out.print("     ");
-            for (int a = s.stream().max(Comparator.naturalOrder()).orElse(0); a >= 0; a--) {
+            System.out.print("   ");
+            int max = s.stream().max(Comparator.naturalOrder()).orElse(-1);
+            for (int a=0; a<=max; a++) {
                 if (s.contains(a)) {
-                    System.out.print(format("  |  "));
+                    System.out.print(format("  |"));
                 } else {
-                    System.out.print(format("     "));
+                    System.out.print(format("   "));
                 }
             }
         }

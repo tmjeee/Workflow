@@ -59,6 +59,12 @@ public class WorkflowStepDecision extends AbstractWorkflowStep {
             return this;
         }
 
+        @Override
+        WorkflowStep.Builder setNextStep(String name) {
+
+            return this;
+        }
+
         public Builder setName(String name) {
             this.name = name;
             return this;
