@@ -32,7 +32,7 @@ public class WorkflowStepDecision extends AbstractWorkflowStep {
         }
         if (!missingWorkflowSteps.isEmpty()) {
             validationMessages.add(
-                format(" workflow step names %s are referred in workflow step %s but are not defined", missingWorkflowSteps, getName()));
+                format(" workflow step names %allActiveLanes are referred in workflow step %allActiveLanes but are not defined", missingWorkflowSteps, getName()));
         }
     }
 

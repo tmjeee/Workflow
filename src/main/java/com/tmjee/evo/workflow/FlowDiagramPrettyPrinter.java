@@ -15,33 +15,33 @@ public class FlowDiagramPrettyPrinter {
         this.m = m;
     }
 
-    int lane =0;
-    int i=0;
+    int laneIdCount =0; // keep count of Lane's id
+    int nodeIdCount =0; // keep count of Node's id
     Map<String, Node> nodesMap;
-    Set<Integer> s = new TreeSet<>(); // all of the current lanes
+    Set<Integer> allActiveLanes = new TreeSet<>(); // all of the current lanes
 
     public void print() {
-        lane = 0;
-        i = 0;
+        laneIdCount = 0;
+        nodeIdCount = 0;
         List<WorkflowStep> workflowSteps = new ArrayList<>(m.values());
 
         nodesMap = new LinkedHashMap<>();
 
         for (WorkflowStep step : workflowSteps) {
             String name = step.getName();
-            WorkflowStep.Type type = step.getType();
 
+            // accepts a Visitor, tell Visitor the next steps you have
             step.accept(new WorkflowStep.Visitor() {
                 @Override
                 public void setNextStep(String workflowStepName) {
-                    Path p = new Path(lane++, null);
+                    Path p = new Path(laneIdCount++, null);
                     addOutgoingPath(p, name);
                     addIncommingPath(p, workflowStepName);
                 }
 
                 @Override
                 public void setNextStep(String cond, String workflowStepName) {
-                    Path p = new Path(lane++, cond);
+                    Path p = new Path(laneIdCount++, cond);
                     addOutgoingPath(p, name);
                     addIncommingPath(p, workflowStepName);
                 }
@@ -49,7 +49,6 @@ public class FlowDiagramPrettyPrinter {
         }
 
         for (Node n : nodesMap.values()) {
-            //addOutgoingPaths(n);
             n.prettyPrint();
         }
 
@@ -69,23 +68,14 @@ public class FlowDiagramPrettyPrinter {
 
     private Node findNode(String workflowStepName, WorkflowStep.Type type) {
         if (!nodesMap.containsKey(workflowStepName)) {
-            Node n = new Node(i++, workflowStepName, type);
+            Node n = new Node(nodeIdCount++, workflowStepName, type);
             nodesMap.put(workflowStepName, n);
         }
         return nodesMap.get(workflowStepName);
     }
-    private void addOutgoingPaths(Node n) {
-        Set<Integer> o = n.outgoings.stream().mapToInt((p) -> p.lane).collect(TreeSet::new, TreeSet::add, TreeSet::addAll);
-        s.addAll(o);
-    }
-    private void removeIncommingPaths(Node n) {
-        Set<Integer> o = n.incommings.stream().mapToInt((p) -> p.lane).collect(TreeSet::new, TreeSet::add, TreeSet::addAll);
-        s.removeAll(o);
-    }
-
 
     class Node {
-        int i;
+        int i;  // id of current node (sequential)
         String name;
         WorkflowStep.Type type;
         List<Path> incommings;
@@ -117,12 +107,12 @@ public class FlowDiagramPrettyPrinter {
                     System.out.print(format("            "   ));prettyPrint_Path();printLine();
                     break;
                 case DECISION:
-                    System.out.print(format("   -----    "   ));prettyPrint_Path();printLine();
+                    System.out.print(format("    ----    "   ));prettyPrint_Path();printLine();
                     System.out.print(format("  /     \\   "   )); prettyPrint_OutgoingPath();printLine();
                     System.out.print(format(" /   %s   \\  ", i));prettyPrint_Path();printLine();
                     System.out.print(format(" \\       /  "   ));prettyPrint_IncommingPath();printLine();
                     System.out.print(format("  \\     /   "   ));prettyPrint_Path();printLine();
-                    System.out.print(format("   -----    "   ));prettyPrint_Path();printLine();
+                    System.out.print(format("    ----    "   ));prettyPrint_Path();printLine();
                     System.out.print(format("            "   ));prettyPrint_Path();printLine();
                     break;
             }
@@ -135,7 +125,7 @@ public class FlowDiagramPrettyPrinter {
             }
 
             int max = Math.max(
-                s.stream().max(Comparator.naturalOrder()).orElse(-1),
+                allActiveLanes.stream().max(Comparator.naturalOrder()).orElse(-1),
                 o.stream().max(Comparator.naturalOrder()).orElse(-1));
 
             System.out.print("-<-");
@@ -143,13 +133,15 @@ public class FlowDiagramPrettyPrinter {
                 if (o.contains(a)) {
                     System.out.print("--+");
                     o.remove(a);
-                    s.remove(a);
-                } else if (!o.isEmpty() && s.contains(a)) {
+                    allActiveLanes.remove(a);
+                } else if (!o.isEmpty() && allActiveLanes.contains(a)) {
                     System.out.print("-\\/");
-                } else if (o.isEmpty() && s.contains(a)) {
+                } else if (o.isEmpty() && allActiveLanes.contains(a)) {
                     System.out.print("  |");
-                } else {
+                } else if (!o.isEmpty()) {
                     System.out.print("---");
+                } else {
+                    System.out.print("   ");
                 }
             }
         }
@@ -162,30 +154,32 @@ public class FlowDiagramPrettyPrinter {
             }
 
             int max = Math.max(
-                s.stream().max(Comparator.naturalOrder()).orElse(-1),
+                allActiveLanes.stream().max(Comparator.naturalOrder()).orElse(-1),
                 o.stream().max(Comparator.naturalOrder()).orElse(-1));
 
             System.out.print("->-");
 
             for (int a=0; a<=max;a++) {
-                if (o.contains(a)) {
+                if (o.contains(a)) { // outgoing occupying this lane
                     System.out.print("--+");
-                    s.add(a);
-                } else if (!o.isEmpty() && s.contains(a)) {
+                    allActiveLanes.add(a);
+                } else if (!o.isEmpty() && allActiveLanes.contains(a)) { // has outgoing, this lane occupied by others
                     System.out.print("-/\\");
-                } else if (o.isEmpty() && s.contains(a)) {
+                } else if (o.isEmpty() && allActiveLanes.contains(a)) { // no outgoing occupying this lane, others are using this lane
                     System.out.print("  |");
-                } else {
+                } else if (!o.isEmpty()) {  // only outgoing occupying this lane
                     System.out.print("---");
+                } else {
+                    System.out.print("   ");
                 }
             }
         }
 
         void prettyPrint_Path() {
             System.out.print("   ");
-            int max = s.stream().max(Comparator.naturalOrder()).orElse(-1);
+            int max = allActiveLanes.stream().max(Comparator.naturalOrder()).orElse(-1);
             for (int a=0; a<=max; a++) {
-                if (s.contains(a)) {
+                if (allActiveLanes.contains(a)) {
                     System.out.print(format("  |"));
                 } else {
                     System.out.print(format("   "));

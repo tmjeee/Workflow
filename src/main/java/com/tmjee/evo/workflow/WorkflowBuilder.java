@@ -23,15 +23,16 @@ public class WorkflowBuilder {
     // ----------- instance methods
 
     private Param param = new Param();
+    private List<WorkflowStep.Builder> builderList = Collections.emptyList();
 
     public WorkflowBuilder doTask(String name, TaskRunner r) {
-        new TaskCondition(name, r).process(param);
+        builderList = new TaskCondition(name, r).process(builderList, param);
         return this;
     }
 
 
     public WorkflowBuilder decide(String name, WhenCondition... whenConditions) {
-        new DecideCondition(name, whenConditions).process(param);
+        builderList = new DecideCondition(name, whenConditions).process(builderList, param);
         return this;
     }
 
@@ -80,12 +81,11 @@ public class WorkflowBuilder {
     // ----------- inner classes
 
     static class Param {
-        private WorkflowStep.Builder currentBuilder;
         private Map<String, WorkflowStep.Builder> allBuilders = new LinkedHashMap<>();
 
         void addWorkflowStepBuilder(String name, WorkflowStep.Builder b) {
            if (allBuilders.containsKey(name)) {
-               throw new WorkflowException(format("workflow step %s already exists", name));
+               throw new WorkflowException(format("workflow step %allActiveLanes already exists", name));
            } else {
                allBuilders.put(name, b);
            }
@@ -93,7 +93,7 @@ public class WorkflowBuilder {
     }
 
     public static abstract class Condition {
-        abstract void process(Param param);
+        abstract List<WorkflowStep.Builder> process(List<WorkflowStep.Builder> prevBuilders, Param param);
     }
 
     public static abstract class NamedCondition extends Condition {
@@ -114,13 +114,14 @@ public class WorkflowBuilder {
         }
 
         @Override
-        void process(Param param) {
-            if (param.currentBuilder != null) {
-                param.currentBuilder.setNextStep(name);
-            }
-            param.currentBuilder = new WorkflowStepTask.Builder()
+        List<WorkflowStep.Builder> process(List<WorkflowStep.Builder> prevBuilders, Param param) {
+            WorkflowStepTask.Builder b = new WorkflowStepTask.Builder()
                 .setName(name, r);
-            param.addWorkflowStepBuilder(name, param.currentBuilder);
+            for(WorkflowStep.Builder prevBuilder : prevBuilders) {
+                prevBuilder.setNextStep(name);
+            }
+            param.addWorkflowStepBuilder(name, b);
+            return Collections.unmodifiableList(Arrays.asList(b));
         }
     }
 
@@ -139,18 +140,22 @@ public class WorkflowBuilder {
         }
 
         @Override
-        void process(Param param) {
-            if (param.currentBuilder != null) {
-                param.currentBuilder.setNextStep(name);
-            }
-            param.currentBuilder = new WorkflowStepDecision.Builder()
+        List<WorkflowStep.Builder> process(List<WorkflowStep.Builder> prevBuilders, Param param) {
+            WorkflowStepDecision.Builder b = new WorkflowStepDecision.Builder()
                 .setName(name);
-            param.addWorkflowStepBuilder(name, param.currentBuilder);
-            for (WhenCondition wc : whenConditions) {
-                wc.process(param);
+            for(WorkflowStep.Builder prevBuilder : prevBuilders) {
+                prevBuilder.setNextStep(name);
             }
+            param.addWorkflowStepBuilder(name, b);
+            List<WorkflowStep.Builder> bs = Collections.unmodifiableList(Arrays.asList(b));
+            List<WorkflowStep.Builder> total = new ArrayList<>();
+            for (WhenCondition wc : whenConditions) {
+                b.setNextStep(wc.cond, wc.conditions.get(0).name());
+                List<WorkflowStep.Builder> r = wc.process(bs, param);
+                total.addAll(r);
+            }
+            return Collections.unmodifiableList(total);
         }
-
     }
 
     public static class WhenCondition extends Condition {
@@ -174,15 +179,12 @@ public class WorkflowBuilder {
         }
 
         @Override
-        void process(Param param) {
-            WorkflowStep.Builder oldBuilder = param.currentBuilder;
-            for (NamedCondition c : conditions) {
-                param.currentBuilder.setNextStep(cond, c.name());
-                c.process(param);
+        List<WorkflowStep.Builder> process(List<WorkflowStep.Builder> prevBuilders, Param param) {
+            List<WorkflowStep.Builder> temp = prevBuilders;
+            for(NamedCondition c: conditions) {
+                temp = c.process(temp, param);
             }
-            param.currentBuilder = oldBuilder;
+            return temp;
         }
     }
-
-
 }

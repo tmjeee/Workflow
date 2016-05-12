@@ -41,7 +41,7 @@ public class WorkflowStepTask extends AbstractWorkflowStep {
     protected void validate(Map<String, WorkflowStep> m, Set<String> validationMessages) {
         if (nextWorkflowStepName != null) {
             if (!m.containsKey(nextWorkflowStepName)) {
-                validationMessages.add(format("workflow %s is referred in %s but not defined", nextWorkflowStepName, getName()));
+                validationMessages.add(format("workflow %allActiveLanes is referred in %allActiveLanes but not defined", nextWorkflowStepName, getName()));
             }
         }
     }
