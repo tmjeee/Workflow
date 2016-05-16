@@ -31,7 +31,9 @@ public class Main {
                         when("opt3")
                             .doTask("task3", ()->{}),
                         when("opt4")
-                            .doTask("task4", ()->{})
+                            .doTask("task4", ()->{}),
+                        when("opt5")
+                            .doGoTo("task1")
                     ),
                 when("opt2")
                     .doTask("task5", ()->{})

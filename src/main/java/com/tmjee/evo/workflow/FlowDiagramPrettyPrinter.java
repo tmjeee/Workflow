@@ -18,7 +18,8 @@ public class FlowDiagramPrettyPrinter {
     int laneIdCount =0; // keep count of Lane's id
     int nodeIdCount =0; // keep count of Node's id
     Map<String, Node> nodesMap;
-    Set<Integer> allActiveLanes = new TreeSet<>(); // all of the current lanes
+    Set<Integer> allActiveDownwardLanes = new TreeSet<>();  // all active downward lanes
+    Set<Integer> allActiveUpwardLanes = new TreeSet<>();    // all active upward lanes
 
     public void print() {
         laneIdCount = 0;
@@ -27,26 +28,26 @@ public class FlowDiagramPrettyPrinter {
 
         nodesMap = new LinkedHashMap<>();
 
-        for (WorkflowStep step : workflowSteps) {
-            String name = step.getName();
+            for (WorkflowStep step : workflowSteps) {
+                String name = step.getName();
 
-            // accepts a Visitor, tell Visitor the next steps you have
-            step.accept(new WorkflowStep.Visitor() {
-                @Override
-                public void setNextStep(String workflowStepName) {
-                    Path p = new Path(laneIdCount++, null);
-                    addOutgoingPath(p, name);
-                    addIncommingPath(p, workflowStepName);
-                }
+                // accepts a Visitor, tell Visitor the next steps you have
+                step.accept(new WorkflowStep.Visitor() {
+                    @Override
+                    public void setNextStep(String workflowStepName) {
+                        Path p = new Path(laneIdCount++, null);
+                        addOutgoingPath(p, name);
+                        addIncommingPath(p, workflowStepName);
+                    }
 
-                @Override
-                public void setNextStep(String cond, String workflowStepName) {
-                    Path p = new Path(laneIdCount++, cond);
-                    addOutgoingPath(p, name);
-                    addIncommingPath(p, workflowStepName);
-                }
-            });
-        }
+                    @Override
+                    public void setNextStep(String cond, String workflowStepName) {
+                        Path p = new Path(laneIdCount++, cond);
+                        addOutgoingPath(p, name);
+                        addIncommingPath(p, workflowStepName);
+                    }
+                });
+            }
 
         for (Node n : nodesMap.values()) {
             n.prettyPrint();
@@ -125,7 +126,7 @@ public class FlowDiagramPrettyPrinter {
             }
 
             int max = Math.max(
-                allActiveLanes.stream().max(Comparator.naturalOrder()).orElse(-1),
+                allActiveDownwardLanes.stream().max(Comparator.naturalOrder()).orElse(-1),
                 o.stream().max(Comparator.naturalOrder()).orElse(-1));
 
             System.out.print("-<-");
@@ -133,10 +134,10 @@ public class FlowDiagramPrettyPrinter {
                 if (o.contains(a)) {
                     System.out.print("--+");
                     o.remove(a);
-                    allActiveLanes.remove(a);
-                } else if (!o.isEmpty() && allActiveLanes.contains(a)) {
+                    allActiveDownwardLanes.remove(a);
+                } else if (!o.isEmpty() && allActiveDownwardLanes.contains(a)) {
                     System.out.print("-\\/");
-                } else if (o.isEmpty() && allActiveLanes.contains(a)) {
+                } else if (o.isEmpty() && allActiveDownwardLanes.contains(a)) {
                     System.out.print("  |");
                 } else if (!o.isEmpty()) {
                     System.out.print("---");
@@ -154,7 +155,7 @@ public class FlowDiagramPrettyPrinter {
             }
 
             int max = Math.max(
-                allActiveLanes.stream().max(Comparator.naturalOrder()).orElse(-1),
+                allActiveDownwardLanes.stream().max(Comparator.naturalOrder()).orElse(-1),
                 o.stream().max(Comparator.naturalOrder()).orElse(-1));
 
             System.out.print("->-");
@@ -162,10 +163,10 @@ public class FlowDiagramPrettyPrinter {
             for (int a=0; a<=max;a++) {
                 if (o.contains(a)) { // outgoing occupying this lane
                     System.out.print("--+");
-                    allActiveLanes.add(a);
-                } else if (!o.isEmpty() && allActiveLanes.contains(a)) { // has outgoing, this lane occupied by others
+                    allActiveDownwardLanes.add(a);
+                } else if (!o.isEmpty() && allActiveDownwardLanes.contains(a)) { // has outgoing, this lane occupied by others
                     System.out.print("-/\\");
-                } else if (o.isEmpty() && allActiveLanes.contains(a)) { // no outgoing occupying this lane, others are using this lane
+                } else if (o.isEmpty() && allActiveDownwardLanes.contains(a)) { // no outgoing occupying this lane, others are using this lane
                     System.out.print("  |");
                 } else if (!o.isEmpty()) {  // only outgoing occupying this lane
                     System.out.print("---");
@@ -177,9 +178,9 @@ public class FlowDiagramPrettyPrinter {
 
         void prettyPrint_Path() {
             System.out.print("   ");
-            int max = allActiveLanes.stream().max(Comparator.naturalOrder()).orElse(-1);
+            int max = allActiveDownwardLanes.stream().max(Comparator.naturalOrder()).orElse(-1);
             for (int a=0; a<=max; a++) {
-                if (allActiveLanes.contains(a)) {
+                if (allActiveDownwardLanes.contains(a)) {
                     System.out.print(format("  |"));
                 } else {
                     System.out.print(format("   "));
@@ -199,6 +200,19 @@ public class FlowDiagramPrettyPrinter {
         Path(int lane, String description) {
             this.lane = lane;
             this.description =description;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            Path path = (Path) o;
+            return lane == path.lane;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(lane);
         }
     }
 }

@@ -30,9 +30,13 @@ public class WorkflowBuilder {
         return this;
     }
 
-
     public WorkflowBuilder decide(String name, WhenCondition... whenConditions) {
         builderList = new DecideCondition(name, whenConditions).process(builderList, param);
+        return this;
+    }
+
+    public WorkflowBuilder doGoTo(String gotoName) {
+        builderList = new GotoCondition(gotoName).process(builderList, param);
         return this;
     }
 
@@ -96,8 +100,35 @@ public class WorkflowBuilder {
         abstract List<WorkflowStep.Builder> process(List<WorkflowStep.Builder> prevBuilders, Param param);
     }
 
+
     public static abstract class NamedCondition extends Condition {
         abstract String name();
+    }
+
+    public static class GotoCondition extends Condition {
+
+        String cond;
+        String gotoName;
+
+        GotoCondition(String gotoName) {
+            this.gotoName = gotoName;
+        }
+        GotoCondition(String cond, String gotoName) {
+            this(gotoName);
+            this.cond = cond;
+        }
+
+        @Override
+        List<WorkflowStep.Builder> process(List<WorkflowStep.Builder> prevBuilders, Param param) {
+            for(WorkflowStep.Builder prevBuilder : prevBuilders) {
+                if (cond == null) {
+                    prevBuilder.setNextStep(gotoName);
+                } else {
+                    prevBuilder.setNextStep(cond, gotoName);
+                }
+            }
+            return Collections.emptyList();
+        }
     }
 
     public static class TaskCondition extends NamedCondition {
@@ -127,9 +158,9 @@ public class WorkflowBuilder {
 
     public static class DecideCondition extends NamedCondition {
         private String name;
-        private WhenCondition[] whenConditions;
+        private BaseWhenCondition[] whenConditions;
 
-        DecideCondition(String name, WhenCondition... whenConditions) {
+        DecideCondition(String name, BaseWhenCondition... whenConditions) {
             this.name = name;
             this.whenConditions = whenConditions;
         }
@@ -148,9 +179,8 @@ public class WorkflowBuilder {
             }
             param.addWorkflowStepBuilder(name, b);
             List<WorkflowStep.Builder> bs = Collections.unmodifiableList(Arrays.asList(b));
-            List<WorkflowStep.Builder> total = new ArrayList<>();
-            for (WhenCondition wc : whenConditions) {
-                b.setNextStep(wc.cond, wc.conditions.get(0).name());
+            List<WorkflowStep.Builder> total = new ArrayList<>(); // all builders that needs to be mapped to their next step
+            for (BaseWhenCondition wc : whenConditions) {
                 List<WorkflowStep.Builder> r = wc.process(bs, param);
                 total.addAll(r);
             }
@@ -158,14 +188,34 @@ public class WorkflowBuilder {
         }
     }
 
-    public static class WhenCondition extends Condition {
+    public static abstract class BaseWhenCondition extends Condition {
 
-        List<NamedCondition> conditions;
+        List<Condition> conditions;
         String cond;
 
-        WhenCondition(String cond) {
+        BaseWhenCondition(String cond) {
             this.cond = cond;
             this.conditions = new ArrayList<>();
+        }
+
+    }
+
+    public static abstract class GotoWhenCondition extends BaseWhenCondition {
+
+        GotoWhenCondition(String cond) {
+            super(cond);
+        }
+
+        public BaseWhenCondition doGoTo(String gotoName) {
+            conditions.add(new GotoCondition(cond, gotoName));
+            return this;
+        }
+    }
+
+    public static class WhenCondition extends GotoWhenCondition {
+
+        WhenCondition(String cond) {
+            super(cond);
         }
 
         public WhenCondition doTask(String name, TaskRunner r) {
@@ -173,16 +223,27 @@ public class WorkflowBuilder {
             return this;
         }
 
-        public WhenCondition decide(String name, WhenCondition... whenConditions) {
+        public WhenCondition decide(String name, BaseWhenCondition... whenConditions) {
             conditions.add(new DecideCondition(name, whenConditions));
             return this;
         }
 
+
         @Override
         List<WorkflowStep.Builder> process(List<WorkflowStep.Builder> prevBuilders, Param param) {
+            int a=0;
             List<WorkflowStep.Builder> temp = prevBuilders;
-            for(NamedCondition c: conditions) {
+            for(Condition c: conditions) {
+                if (a == 0) {
+                    if (c instanceof NamedCondition) {
+                        for (WorkflowStep.Builder prevBuilder : prevBuilders) {
+                            NamedCondition n = (NamedCondition) c;
+                            prevBuilder.setNextStep(cond, n.name());
+                        }
+                    }
+                }
                 temp = c.process(temp, param);
+                a++;
             }
             return temp;
         }
