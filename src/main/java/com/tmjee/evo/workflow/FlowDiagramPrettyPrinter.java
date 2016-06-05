@@ -1,6 +1,7 @@
 package com.tmjee.evo.workflow;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static java.lang.String.format;
 
@@ -18,35 +19,49 @@ public class FlowDiagramPrettyPrinter {
     int laneIdCount =0; // keep count of Lane's id
     int nodeIdCount =0; // keep count of Node's id
     Map<String, Node> nodesMap;
-    Set<Integer> allActiveLanes = new TreeSet<>();  // all lanes
+    Set<Integer> allActiveLanes = new TreeSet<>();  // all active lanes
 
     public void print() {
         laneIdCount = 0;
         nodeIdCount = 0;
+
         List<WorkflowStep> workflowSteps = new ArrayList<>(m.values());
+        List<String> workflowStepNames = m.values().stream().map((s)->s.getName()).collect(Collectors.toCollection(ArrayList<String>::new));
 
         nodesMap = new LinkedHashMap<>();
 
-            for (WorkflowStep step : workflowSteps) {
-                String name = step.getName();
+        for (WorkflowStep step : workflowSteps) {
+            String name = step.getName();
 
-                // accepts a Visitor, tell Visitor the next steps you have
-                step.accept(new WorkflowStep.Visitor() {
-                    @Override
-                    public void setNextStep(String workflowStepName) {
-                        Path p = new Path(laneIdCount++, null);
-                        addOutgoingPath(p, name);
-                        addIncommingPath(p, workflowStepName);
-                    }
+            // accepts a Visitor, tell Visitor the next steps you have
+            step.accept(new WorkflowStep.Visitor() {
+                @Override
+                public void setNextStep(String workflowStepName) {
 
-                    @Override
-                    public void setNextStep(String cond, String workflowStepName) {
-                        Path p = new Path(laneIdCount++, cond);
-                        addOutgoingPath(p, name);
-                        addIncommingPath(p, workflowStepName);
-                    }
-                });
-            }
+                    int source = workflowStepNames.indexOf(name);
+                    int dest = workflowStepNames.indexOf(workflowStepName);
+
+                    int laneId = laneIdCount++;
+                    Path p = new Path(laneId, null, (source<dest? Path.Direction.DOWN: Path.Direction.UP));
+                    addOutgoingPath(p, name);
+                    p = new Path(laneId, null, (dest<source?Path.Direction.DOWN:Path.Direction.UP));
+                    addIncommingPath(p, workflowStepName);
+                }
+
+                @Override
+                public void setNextStep(String cond, String workflowStepName) {
+
+                    int source = workflowStepNames.indexOf(name);
+                    int dest = workflowStepNames.indexOf(workflowStepName);
+
+                    int laneId = laneIdCount++;
+                    Path p = new Path(laneId, cond, (source<dest?Path.Direction.DOWN:Path.Direction.UP));
+                    addOutgoingPath(p, name);
+                    p = new Path(laneId, cond, (dest<source?Path.Direction.DOWN:Path.Direction.UP));
+                    addIncommingPath(p, workflowStepName);
+                }
+            });
+        }
 
         for (Node n : nodesMap.values()) {
             n.prettyPrint();
@@ -118,7 +133,8 @@ public class FlowDiagramPrettyPrinter {
             }
         }
         void prettyPrint_IncommingPath() {
-            Set<Path> o = incommings.stream().collect(TreeSet::new, TreeSet::add, TreeSet::addAll);
+            Set<Integer> o = incommings.stream().mapToInt((p) -> p.lane).collect(TreeSet::new, TreeSet::add, TreeSet::addAll);
+
             if (o.isEmpty()) {
                 prettyPrint_Path();
                 return;
@@ -126,14 +142,19 @@ public class FlowDiagramPrettyPrinter {
 
             int max = Math.max(
                 allActiveLanes.stream().max(Comparator.naturalOrder()).orElse(-1),
-                o.stream().map((p)->p.lane).max(Comparator.naturalOrder()).orElse(-1));
+                o.stream().max(Comparator.naturalOrder()).orElse(-1));
+
+            Map<Integer, Path> m = incommings.stream().collect(Collectors.toMap((p)->p.lane, (p)->p));
 
             System.out.print("-<-");
             for (int a=0; a<=max;a++) {
                 if (o.contains(a)) {
                     System.out.print("--+");
-                    o.remove(a);
-                    allActiveLanes.remove(a);
+                    if (m.get(a).direction == Path.Direction.UP){
+                        allActiveLanes.remove(a);
+                    } else {
+                        allActiveLanes.add(a);
+                    }
                 } else if (!o.isEmpty() && allActiveLanes.contains(a)) {
                     System.out.print("-\\/");
                 } else if (o.isEmpty() && allActiveLanes.contains(a)) {
@@ -157,12 +178,18 @@ public class FlowDiagramPrettyPrinter {
                 allActiveLanes.stream().max(Comparator.naturalOrder()).orElse(-1),
                 o.stream().max(Comparator.naturalOrder()).orElse(-1));
 
+            Map<Integer, Path> m = outgoings.stream().collect(Collectors.toMap((p)->p.lane, (p)->p));
+
             System.out.print("->-");
 
             for (int a=0; a<=max;a++) {
                 if (o.contains(a)) { // outgoing occupying this lane
                     System.out.print("--+");
-                    allActiveLanes.add(a);
+                    if (m.get(a).direction == Path.Direction.UP) {
+                        allActiveLanes.remove(a);
+                    } else {
+                        allActiveLanes.add(a);
+                    }
                 } else if (!o.isEmpty() && allActiveLanes.contains(a)) { // has outgoing, this lane occupied by others
                     System.out.print("-/\\");
                 } else if (o.isEmpty() && allActiveLanes.contains(a)) { // no outgoing occupying this lane, others are using this lane
@@ -192,13 +219,18 @@ public class FlowDiagramPrettyPrinter {
         }
     }
 
-    static class Path implements Comparable<Path> {
+    static class Path {
+        enum Direction {
+            UP,DOWN
+        };
         int lane;
-        String cond;
+        String description;
+        Direction direction;
 
-        Path(int lane, String description, ) {
+        Path(int lane, String description, Direction direction) {
             this.lane = lane;
-            this.cond  cond;
+            this.description =description;
+            this.direction = direction;
         }
 
         @Override
@@ -212,11 +244,6 @@ public class FlowDiagramPrettyPrinter {
         @Override
         public int hashCode() {
             return Objects.hash(lane);
-        }
-
-        @Override
-        public int compareTo(Path o) {
-            return (lane - o.lane);
         }
     }
 }
