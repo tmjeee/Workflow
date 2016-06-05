@@ -18,8 +18,7 @@ public class FlowDiagramPrettyPrinter {
     int laneIdCount =0; // keep count of Lane's id
     int nodeIdCount =0; // keep count of Node's id
     Map<String, Node> nodesMap;
-    Set<Integer> allActiveDownwardLanes = new TreeSet<>();  // all active downward lanes
-    Set<Integer> allActiveUpwardLanes = new TreeSet<>();    // all active upward lanes
+    Set<Integer> allActiveLanes = new TreeSet<>();  // all lanes
 
     public void print() {
         laneIdCount = 0;
@@ -119,25 +118,25 @@ public class FlowDiagramPrettyPrinter {
             }
         }
         void prettyPrint_IncommingPath() {
-            Set<Integer> o = incommings.stream().mapToInt((p) -> p.lane).collect(TreeSet::new, TreeSet::add, TreeSet::addAll);
+            Set<Path> o = incommings.stream().collect(TreeSet::new, TreeSet::add, TreeSet::addAll);
             if (o.isEmpty()) {
                 prettyPrint_Path();
                 return;
             }
 
             int max = Math.max(
-                allActiveDownwardLanes.stream().max(Comparator.naturalOrder()).orElse(-1),
-                o.stream().max(Comparator.naturalOrder()).orElse(-1));
+                allActiveLanes.stream().max(Comparator.naturalOrder()).orElse(-1),
+                o.stream().map((p)->p.lane).max(Comparator.naturalOrder()).orElse(-1));
 
             System.out.print("-<-");
             for (int a=0; a<=max;a++) {
                 if (o.contains(a)) {
                     System.out.print("--+");
                     o.remove(a);
-                    allActiveDownwardLanes.remove(a);
-                } else if (!o.isEmpty() && allActiveDownwardLanes.contains(a)) {
+                    allActiveLanes.remove(a);
+                } else if (!o.isEmpty() && allActiveLanes.contains(a)) {
                     System.out.print("-\\/");
-                } else if (o.isEmpty() && allActiveDownwardLanes.contains(a)) {
+                } else if (o.isEmpty() && allActiveLanes.contains(a)) {
                     System.out.print("  |");
                 } else if (!o.isEmpty()) {
                     System.out.print("---");
@@ -155,7 +154,7 @@ public class FlowDiagramPrettyPrinter {
             }
 
             int max = Math.max(
-                allActiveDownwardLanes.stream().max(Comparator.naturalOrder()).orElse(-1),
+                allActiveLanes.stream().max(Comparator.naturalOrder()).orElse(-1),
                 o.stream().max(Comparator.naturalOrder()).orElse(-1));
 
             System.out.print("->-");
@@ -163,10 +162,10 @@ public class FlowDiagramPrettyPrinter {
             for (int a=0; a<=max;a++) {
                 if (o.contains(a)) { // outgoing occupying this lane
                     System.out.print("--+");
-                    allActiveDownwardLanes.add(a);
-                } else if (!o.isEmpty() && allActiveDownwardLanes.contains(a)) { // has outgoing, this lane occupied by others
+                    allActiveLanes.add(a);
+                } else if (!o.isEmpty() && allActiveLanes.contains(a)) { // has outgoing, this lane occupied by others
                     System.out.print("-/\\");
-                } else if (o.isEmpty() && allActiveDownwardLanes.contains(a)) { // no outgoing occupying this lane, others are using this lane
+                } else if (o.isEmpty() && allActiveLanes.contains(a)) { // no outgoing occupying this lane, others are using this lane
                     System.out.print("  |");
                 } else if (!o.isEmpty()) {  // only outgoing occupying this lane
                     System.out.print("---");
@@ -178,9 +177,9 @@ public class FlowDiagramPrettyPrinter {
 
         void prettyPrint_Path() {
             System.out.print("   ");
-            int max = allActiveDownwardLanes.stream().max(Comparator.naturalOrder()).orElse(-1);
+            int max = allActiveLanes.stream().max(Comparator.naturalOrder()).orElse(-1);
             for (int a=0; a<=max; a++) {
-                if (allActiveDownwardLanes.contains(a)) {
+                if (allActiveLanes.contains(a)) {
                     System.out.print(format("  |"));
                 } else {
                     System.out.print(format("   "));
@@ -193,13 +192,13 @@ public class FlowDiagramPrettyPrinter {
         }
     }
 
-    static class Path {
+    static class Path implements Comparable<Path> {
         int lane;
-        String description;
+        String cond;
 
-        Path(int lane, String description) {
+        Path(int lane, String description, ) {
             this.lane = lane;
-            this.description =description;
+            this.cond  cond;
         }
 
         @Override
@@ -213,6 +212,11 @@ public class FlowDiagramPrettyPrinter {
         @Override
         public int hashCode() {
             return Objects.hash(lane);
+        }
+
+        @Override
+        public int compareTo(Path o) {
+            return (lane - o.lane);
         }
     }
 }
