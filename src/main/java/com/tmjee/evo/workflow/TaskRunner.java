@@ -5,5 +5,5 @@ package com.tmjee.evo.workflow;
  */
 @FunctionalInterface
 public interface TaskRunner {
-    void run();
+    void run(Input input);
 }

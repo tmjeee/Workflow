@@ -1,5 +1,8 @@
 package com.tmjee.evo.workflow;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.*;
 
 import static java.lang.String.format;
@@ -9,11 +12,15 @@ import static java.lang.String.format;
  */
 public class WorkflowStepDecision extends AbstractWorkflowStep {
 
-    private Map<String, String> possibilities;
+    private static final Logger LOG = LoggerFactory.getLogger(WorkflowStepDecision.class);
 
-    public WorkflowStepDecision(String name, Map<String, String > possibilities) {
+    private Map<String, String> possibilities;
+    private String otherwiseStepName;
+
+    public WorkflowStepDecision(String name, String otherwiseStepName, Map<String, String > possibilities) {
         super(name);
         this.possibilities = Collections.unmodifiableMap(new HashMap<>(possibilities));
+        this.otherwiseStepName = otherwiseStepName;
     }
 
 
@@ -26,7 +33,7 @@ public class WorkflowStepDecision extends AbstractWorkflowStep {
     protected void validate(Map<String, WorkflowStep> m, Set<String> validationMessages) {
         Set<String> missingWorkflowSteps = new HashSet<>();
         for (String workflowStepName : possibilities.values()) {
-            if (!m.containsKey(workflowStepName)) {
+            if (!m.containsKey(workflowStepName) && (otherwiseStepName == null)) {
                missingWorkflowSteps.add(workflowStepName);
             }
         }
@@ -38,7 +45,16 @@ public class WorkflowStepDecision extends AbstractWorkflowStep {
 
     @Override
     public void advance(Input input) {
-
+        String result = input.getResult();
+        if (possibilities.containsKey(result)) {
+            workflowContext.setNextWorkflowStepName(possibilities.get(result));
+        } else {
+            if (otherwiseStepName != null) {
+                workflowContext.setNextWorkflowStepName(otherwiseStepName);
+            } else {
+                LOG.warn(format("No option from decision %s matched result %s", getName(), result));
+            }
+        }
     }
 
     @Override
@@ -46,22 +62,29 @@ public class WorkflowStepDecision extends AbstractWorkflowStep {
         for (Map.Entry<String, String> e: possibilities.entrySet()) {
             v.setNextStep(e.getKey(), e.getValue());
         }
+        if (otherwiseStepName != null) {
+            v.setNextStep(otherwiseStepName);
+        }
     }
 
 
     public static class Builder extends WorkflowStep.Builder {
         private String name;
         private Map<String, String> conditionalNextSteps = new HashMap<>();
+        private String otherwiseStepName;
 
         @Override
         WorkflowStep.Builder setNextStep(String condition, String workflowStepName) {
-            conditionalNextSteps.put(condition, workflowStepName);
+            if (condition != null) {
+                conditionalNextSteps.put(condition, workflowStepName);
+            } else {
+                otherwiseStepName = workflowStepName;
+            }
             return this;
         }
 
         @Override
         WorkflowStep.Builder setNextStep(String name) {
-
             return this;
         }
 
@@ -70,7 +93,7 @@ public class WorkflowStepDecision extends AbstractWorkflowStep {
             return this;
         }
         public WorkflowStepDecision build() {
-            return new WorkflowStepDecision(name, conditionalNextSteps);
+            return new WorkflowStepDecision(name, otherwiseStepName, conditionalNextSteps);
         }
     }
 }

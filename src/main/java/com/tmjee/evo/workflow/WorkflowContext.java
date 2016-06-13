@@ -1,17 +1,25 @@
 package com.tmjee.evo.workflow;
 
+import java.util.HashMap;
+import java.util.Map;
+
 /**
  * @author tmjee
  */
 public class WorkflowContext {
 
-    private String currentWorkflowStepName;
+    private String nextWorkflowStepName;
+    private Map<String, String> userSpace = new HashMap<>();
 
-    public String getCurrentWorkflowStepName() {
-        return currentWorkflowStepName;
+    String getNextWorkflowStepName() {
+        return nextWorkflowStepName;
     }
 
-    public void setCurrentWorkflowStepName(String name) {
-        this.currentWorkflowStepName = name;
+    void setNextWorkflowStepName(String name) {
+        this.nextWorkflowStepName = name;
+    }
+
+    public Map<String, String> getUserSpace() {
+        return userSpace;
     }
 }

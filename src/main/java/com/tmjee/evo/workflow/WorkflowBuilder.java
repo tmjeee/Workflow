@@ -18,6 +18,10 @@ public class WorkflowBuilder {
         return new WhenCondition(cond);
     }
 
+    public static OtherwiseCondition otherwise() {
+        return new OtherwiseCondition();
+    }
+
 
 
     // ----------- instance methods
@@ -89,7 +93,7 @@ public class WorkflowBuilder {
 
         void addWorkflowStepBuilder(String name, WorkflowStep.Builder b) {
            if (allBuilders.containsKey(name)) {
-               throw new WorkflowException(format("workflow step %allActiveLanes already exists", name));
+               throw new WorkflowException(format("workflow step %s already exists", name));
            } else {
                allBuilders.put(name, b);
            }
@@ -238,7 +242,8 @@ public class WorkflowBuilder {
                     if (c instanceof NamedCondition) {
                         for (WorkflowStep.Builder prevBuilder : prevBuilders) {
                             NamedCondition n = (NamedCondition) c;
-                            prevBuilder.setNextStep(cond, n.name());
+                            //prevBuilder.setNextStep(cond, n.name());
+                            setNextStep(prevBuilder, n);
                         }
                     }
                 }
@@ -246,6 +251,21 @@ public class WorkflowBuilder {
                 a++;
             }
             return temp;
+        }
+
+        void setNextStep(WorkflowStep.Builder prevBuilder, NamedCondition n) {
+            prevBuilder.setNextStep(cond, n.name());
+        }
+    }
+
+    public static class OtherwiseCondition extends WhenCondition {
+        OtherwiseCondition() {
+            super(null);
+        }
+
+        @Override
+        void setNextStep(WorkflowStep.Builder prevBuilder, NamedCondition n) {
+            prevBuilder.setNextStep(null, n.name());
         }
     }
 }

@@ -27,8 +27,8 @@ public class WorkflowStepTask extends AbstractWorkflowStep {
 
     @Override
     public void advance(Input input) {
-        r.run();
-        workflowContext.setCurrentWorkflowStepName(nextWorkflowStepName);
+        r.run(input);
+        workflowContext.setNextWorkflowStepName(nextWorkflowStepName);
     }
 
     @Override

@@ -21,7 +21,10 @@ public class Workflow {
         for (WorkflowStep s : m.values()) {
             s.setWorkflowContext(workflowContext);
         }
-
+        workflowContext.setNextWorkflowStepName(WorkflowStepStart.NAME);
+        if (hasNextStep()) {
+            nextStep().advance(null);
+        }
     }
 
 
@@ -31,12 +34,12 @@ public class Workflow {
 
 
     public boolean hasNextStep() {
-        return (workflowContext.getCurrentWorkflowStepName() != null);
+        return (workflowContext.getNextWorkflowStepName() != WorkflowStepEnd.NAME);
     }
 
 
     public WorkflowStep nextStep() {
-        return m.get(workflowContext.getCurrentWorkflowStepName());
+        return m.get(workflowContext.getNextWorkflowStepName());
     }
 
 }
