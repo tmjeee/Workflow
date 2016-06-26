@@ -13,19 +13,18 @@ public class Workflow {
     private final Map<String, WorkflowStep> m;
 
     private final WorkflowContext workflowContext;
+    private Input latestInput;
 
 
-    Workflow(Map<String, WorkflowStep> m) {
+    Workflow(Map<String, WorkflowStep> m, WorkflowContext wc) {
         this.m = Collections.unmodifiableMap(new LinkedHashMap<>(m));
-        this.workflowContext = new WorkflowContext();
+        this.workflowContext = wc;
         for (WorkflowStep s : m.values()) {
             s.setWorkflowContext(workflowContext);
         }
         workflowContext.setNextWorkflowStepName(WorkflowStepStart.NAME);
-        if (hasNextStep()) {
-            nextStep().advance(null);
-        }
     }
+
 
 
     public void prettyPrintFlowDiagram() {
@@ -34,12 +33,43 @@ public class Workflow {
 
 
     public boolean hasNextStep() {
-        return (workflowContext.getNextWorkflowStepName() != WorkflowStepEnd.NAME);
+        WorkflowStep step = m.get(workflowContext.getNextWorkflowStepName());
+        return ((AbstractWorkflowStep)step).hasNext();
     }
 
 
-    public WorkflowStep nextStep() {
-        return m.get(workflowContext.getNextWorkflowStepName());
+    public WorkflowStep next(Input input) {
+        if (hasNextStep()) {
+            latestInput = input;
+            WorkflowStep step = m.get(workflowContext.getNextWorkflowStepName());
+            ((AbstractWorkflowStep)step).next(input);
+            step = m.get(workflowContext.getNextWorkflowStepName());
+            return step;
+        }
+        throw new WorkflowException("No more workflow step");
     }
 
+
+    // ==== internal package private methods
+
+    Internals _internals() {
+        return new Internals(m, workflowContext, latestInput);
+    }
+
+    static Workflow _internals(Internals internals) {
+        Workflow workflow =  new Workflow(internals.m, internals.wc);
+        workflow.latestInput = internals.i;
+        return workflow;
+    }
+
+    static class Internals {
+        final Map<String, WorkflowStep> m;
+        final WorkflowContext wc;
+        final Input i;
+        Internals(Map<String, WorkflowStep> m, WorkflowContext wc, Input i) {
+            this.m = m;
+            this.i =i;
+            this.wc = wc;
+        }
+    }
 }

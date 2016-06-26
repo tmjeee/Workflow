@@ -22,7 +22,7 @@ public class Input {
     public String getResult() {
         return result;
     }
-
+    public Map<String, String> getParams() { return params; }
 
     public static class Builder {
         private Map<String, String> params = new HashMap<>();

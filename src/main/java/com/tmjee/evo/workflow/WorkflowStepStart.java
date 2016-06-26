@@ -10,4 +10,5 @@ public class WorkflowStepStart extends WorkflowStepTask {
     WorkflowStepStart(String nextWorkflowStepName) {
         super(NAME, (i)->{}, nextWorkflowStepName);
     }
+
 }

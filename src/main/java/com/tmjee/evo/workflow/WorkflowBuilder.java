@@ -34,7 +34,7 @@ public class WorkflowBuilder {
         return this;
     }
 
-    public WorkflowBuilder decide(String name, WhenCondition... whenConditions) {
+    public WorkflowBuilder decide(String name, BaseWhenCondition... whenConditions) {
         builderList = new DecideCondition(name, whenConditions).process(builderList, param);
         return this;
     }
@@ -80,13 +80,13 @@ public class WorkflowBuilder {
                 validationMessages.stream().collect(Collectors.joining("\t\n")));
         }
 
-        return new Workflow(m);
+        return new Workflow(m, new WorkflowContext());
     }
 
 
 
 
-    // ----------- inner classes
+    // ----------- inner classes (for fluent APIs)
 
     static class Param {
         private Map<String, WorkflowStep.Builder> allBuilders = new LinkedHashMap<>();
@@ -111,25 +111,16 @@ public class WorkflowBuilder {
 
     public static class GotoCondition extends Condition {
 
-        String cond;
         String gotoName;
 
         GotoCondition(String gotoName) {
             this.gotoName = gotoName;
         }
-        GotoCondition(String cond, String gotoName) {
-            this(gotoName);
-            this.cond = cond;
-        }
 
         @Override
         List<WorkflowStep.Builder> process(List<WorkflowStep.Builder> prevBuilders, Param param) {
             for(WorkflowStep.Builder prevBuilder : prevBuilders) {
-                if (cond == null) {
                     prevBuilder.setNextStep(gotoName);
-                } else {
-                    prevBuilder.setNextStep(cond, gotoName);
-                }
             }
             return Collections.emptyList();
         }
@@ -211,7 +202,7 @@ public class WorkflowBuilder {
         }
 
         public BaseWhenCondition doGoTo(String gotoName) {
-            conditions.add(new GotoCondition(cond, gotoName));
+            conditions.add(new GotoCondition(gotoName));
             return this;
         }
     }
@@ -242,9 +233,16 @@ public class WorkflowBuilder {
                     if (c instanceof NamedCondition) {
                         for (WorkflowStep.Builder prevBuilder : prevBuilders) {
                             NamedCondition n = (NamedCondition) c;
-                            //prevBuilder.setNextStep(cond, n.name());
-                            setNextStep(prevBuilder, n);
+                            setNextStep(prevBuilder, n.name());
                         }
+                    } else if (c instanceof GotoCondition) {
+                        for (WorkflowStep.Builder prevBuilder : prevBuilders) {
+                            GotoCondition g = (GotoCondition) c;
+                            setNextStep(prevBuilder, g.gotoName);
+                        }
+                    } else {
+                        // todo: handle GotoCondition
+                        throw new UnsupportedOperationException(format("condition %s type is not supported", c));
                     }
                 }
                 temp = c.process(temp, param);
@@ -253,8 +251,8 @@ public class WorkflowBuilder {
             return temp;
         }
 
-        void setNextStep(WorkflowStep.Builder prevBuilder, NamedCondition n) {
-            prevBuilder.setNextStep(cond, n.name());
+        void setNextStep(WorkflowStep.Builder prevBuilder, String nextStepName) {
+            prevBuilder.setNextStep(cond, nextStepName);
         }
     }
 
@@ -264,8 +262,8 @@ public class WorkflowBuilder {
         }
 
         @Override
-        void setNextStep(WorkflowStep.Builder prevBuilder, NamedCondition n) {
-            prevBuilder.setNextStep(null, n.name());
+        void setNextStep(WorkflowStep.Builder prevBuilder, String nextStepName) {
+            prevBuilder.setNextStep(null, nextStepName);
         }
     }
 }

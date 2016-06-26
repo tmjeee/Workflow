@@ -28,4 +28,8 @@ public abstract class AbstractWorkflowStep implements WorkflowStep {
 
     protected void validate(Map<String, WorkflowStep> m, Set<String> validationMessages) {
     }
+
+    abstract boolean hasNext();
+
+    abstract void next(Input input);
 }

@@ -15,6 +15,7 @@ public class WorkflowTest2 {
 
     private Workflow workflow;
     private Input input;
+    private WorkflowStep step;
 
     @Before
     public void before() {
@@ -36,26 +37,20 @@ public class WorkflowTest2 {
 
         workflow.prettyPrintFlowDiagram();
 
-        WorkflowStep step = null;
-        input.setResult("opt1");
-
         assertTrue(workflow.hasNextStep());
-        step = workflow.nextStep();
+        step = workflow.next(input);
         assertEquals(step.getType(), WorkflowStep.Type.DECISION);
         assertEquals(step.getName(), "decision1");
-        step.advance(input);
 
         assertTrue(workflow.hasNextStep());
-        step = workflow.nextStep();
+        step = workflow.next(input.setResult("opt1"));
         assertEquals(step.getType(), WorkflowStep.Type.TASK);
         assertEquals(step.getName(), "task1");
-        step.advance(input);
 
         assertTrue(workflow.hasNextStep());
-        step = workflow.nextStep();
+        step = workflow.next(input);
         assertEquals(step.getType(), WorkflowStep.Type.TASK);
         assertEquals(step.getName(), "task3");
-        step.advance(input);
 
         assertFalse(workflow.hasNextStep());
     }

@@ -12,7 +12,6 @@ public interface WorkflowStep {
 
     String getName();
     Type getType();
-    void advance(Input input);
     void setWorkflowContext(WorkflowContext workflowContext);
     void accept(Visitor v);
 

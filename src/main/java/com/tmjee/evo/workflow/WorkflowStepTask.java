@@ -26,7 +26,7 @@ public class WorkflowStepTask extends AbstractWorkflowStep {
     }
 
     @Override
-    public void advance(Input input) {
+    void next(Input input) {
         r.run(input);
         workflowContext.setNextWorkflowStepName(nextWorkflowStepName);
     }
@@ -41,9 +41,14 @@ public class WorkflowStepTask extends AbstractWorkflowStep {
     protected void validate(Map<String, WorkflowStep> m, Set<String> validationMessages) {
         if (nextWorkflowStepName != null) {
             if (!m.containsKey(nextWorkflowStepName)) {
-                validationMessages.add(format("workflow %allActiveLanes is referred in %allActiveLanes but not defined", nextWorkflowStepName, getName()));
+                validationMessages.add(format("workflow %s is referred in %s but not defined", nextWorkflowStepName, getName()));
             }
         }
+    }
+
+    @Override
+    boolean hasNext() {
+        return (!WorkflowStepEnd.NAME.equals(nextWorkflowStepName));
     }
 
     public static class Builder extends WorkflowStep.Builder {

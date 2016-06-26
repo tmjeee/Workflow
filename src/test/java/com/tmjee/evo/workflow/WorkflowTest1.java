@@ -1,5 +1,6 @@
 package com.tmjee.evo.workflow;
 
+import org.junit.Before;
 import org.junit.Test;
 
 import static com.tmjee.evo.workflow.WorkflowBuilder.otherwise;
@@ -14,10 +15,13 @@ import static org.junit.Assert.assertEquals;
  */
 public class WorkflowTest1 {
 
-    @Test
-    public void test() throws Exception {
+    Workflow workflow;
+    WorkflowStep step;
+    Input i;
 
-        Workflow workflow =
+    @Before
+    public void before() {
+        workflow =
             new WorkflowBuilder()
                 .doTask("task1", (i) -> {
                 })
@@ -28,29 +32,38 @@ public class WorkflowTest1 {
                         .doTask("task3", (i) -> {}))
                 .build();
 
+        i = new Input.Builder().build();
+    }
+
+
+    @Test
+    public void test2() throws Exception {
+        new WorkflowWriter().write(workflow, System.out);
+    }
+
+    @Test
+    public void test() throws Exception {
+
         workflow.prettyPrintFlowDiagram();
 
-        WorkflowStep step = null;
+        step = null;
         Input input = new Input.Builder().build();
 
 
         assertTrue(workflow.hasNextStep());
-        step = workflow.nextStep();
+        step = workflow.next(input);
         assertEquals(step.getType(), WorkflowStep.Type.TASK);
         assertEquals(step.getName(), "task1");
-        step.advance(input.setResult("opt1"));
 
         assertTrue(workflow.hasNextStep());
-        step = workflow.nextStep();
+        step = workflow.next(input.setResult("opt1"));
         assertEquals(step.getType(), WorkflowStep.Type.DECISION);
         assertEquals(step.getName(), "decision1");
-        step.advance(input);
 
         assertTrue(workflow.hasNextStep());
-        step = workflow.nextStep();
+        step = workflow.next(input);
         assertEquals(step.getType(), WorkflowStep.Type.TASK);
         assertEquals(step.getName(), "task2");
-        step.advance(input);
 
         assertFalse(workflow.hasNextStep());
     }

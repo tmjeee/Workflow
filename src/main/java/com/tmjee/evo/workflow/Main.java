@@ -42,14 +42,5 @@ public class Main {
             .build();
 
         workflow.prettyPrintFlowDiagram();
-
-        while(!workflow.hasNextStep()) {
-            WorkflowStep step = workflow.nextStep();
-            step.getName();
-            step.getType();
-
-            Input input = new Input.Builder().build();
-            step.advance(input);
-        }
     }
 }

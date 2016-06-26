@@ -44,7 +44,12 @@ public class WorkflowStepDecision extends AbstractWorkflowStep {
     }
 
     @Override
-    public void advance(Input input) {
+    boolean hasNext() {
+        return true;
+    }
+
+    @Override
+    void next(Input input) {
         String result = input.getResult();
         if (possibilities.containsKey(result)) {
             workflowContext.setNextWorkflowStepName(possibilities.get(result));
